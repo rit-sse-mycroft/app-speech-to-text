@@ -33,12 +33,80 @@ namespace SpeechRecognizer
         {
             cli = new TcpClient(hostname, Convert.ToInt32(port));
             setStream(cli.GetStream());
+            startListening();
         }
 
         public void setStream(Stream s)
         {
             writer = new StreamWriter(s, enc);
             reader = new StreamReader(s, enc);
+        }
+
+        private delegate void response_del(SpeechServer self, dynamic message);
+
+        private Dictionary<string,response_del> responses = new Dictionary<string,response_del>{
+            {"APP_MANIFEST_OK", (self, message) => 
+                {
+                    Console.WriteLine(message.instanceId);
+                    return;
+                }
+            },
+            {"APP_MANIFEST_FAIL", (self, message) => 
+                {
+                    return;
+                }
+            },
+            {"APP_DEPENDENCY", (self, message) => 
+                {
+                    Console.WriteLine(message);
+                    return;
+                }
+            },
+            { "MSG_QUERY", (self, message) => 
+                {
+                    return;
+                }
+            },
+            { "MSG_QUERY_SUCCESS", (self, message) =>
+                {
+                    return;
+                }
+            },
+            { "MSG_QUERY_FAIL", (self, message) =>
+                {
+                    return;
+                }
+            },
+            { "MSG_BROADCAST", (self, message) =>
+                {
+                    return;
+                }
+            },
+            { "MSG_BROADCAST_SUCCESS", (self, message) =>
+                {
+                    return;
+                }
+            },
+            { "MSG_BROADCAST_FAIL", (self, message) =>
+                {
+                    return;
+                }
+            }
+        };
+
+        public async void startListening()
+        {
+            await sendManifest();
+            while (true) {
+                dynamic obj = readJson();
+                string type = obj.type;
+                dynamic message = obj.message;
+
+                if (responses.ContainsKey(type)) 
+                {
+                    responses[type](this, message);
+                }
+            }
         }
 
         public async Task sendData(string type, string data)

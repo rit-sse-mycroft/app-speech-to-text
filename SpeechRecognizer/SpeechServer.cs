@@ -18,7 +18,7 @@ using System.Speech.AudioFormat;
 
 namespace SpeechRecognizer
 {
-    private class CombinedGrammar 
+    class CombinedGrammar 
     {
         public string name;
         public string xml;
@@ -35,7 +35,7 @@ namespace SpeechRecognizer
         }
     }
 
-    private class NegotiatedAudioStream
+    class NegotiatedAudioStream
     {
         public AudioBitsPerSample bps;
         public AudioChannel channels;
@@ -64,11 +64,14 @@ namespace SpeechRecognizer
         private Dictionary<string, SpeechRecognitionEngine> sres;
         private Dictionary<string, CombinedGrammar> grammars;
 
+        public string instanceId;
+
         public SpeechServer()
         {
             var assembly = Assembly.GetExecutingAssembly();
             var textStreamReader = new StreamReader(assembly.GetManifestResourceStream("SpeechRecognizer.app_manifest.json"));
             manifest = textStreamReader.ReadToEnd();
+            instanceId = ((dynamic)ser.ReadObject(new MemoryStream(Encoding.UTF8.GetBytes(manifest)))).instanceId;
 
             sres = new Dictionary<string, SpeechRecognitionEngine>();
             grammars = new Dictionary<string, CombinedGrammar>();
@@ -121,7 +124,7 @@ namespace SpeechRecognizer
             {
                 var negotiated = negotiateAudioStream(instance); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
-                sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channel));
+                sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
                 sre.SpeechRecognized += recognitionHandler;
                 sres.Add(instance, sre);
             }
@@ -142,6 +145,7 @@ namespace SpeechRecognizer
 
         private NegotiatedAudioStream negotiateAudioStream(string instance)
         {
+            //I have no clue how to do this right now.
             throw new IOException("Failed to negoiate an audio stream with "+instance);
             return new NegotiatedAudioStream(new MemoryStream(), 44100, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
         }
@@ -151,7 +155,7 @@ namespace SpeechRecognizer
         private Dictionary<string,response_del> responses = new Dictionary<string,response_del>{
             {"APP_MANIFEST_OK", (self, message) => 
                 {
-                    Console.WriteLine(message.instanceId);
+                    self.instanceId = message.instanceId;
                     return;
                 }
             },
@@ -192,7 +196,24 @@ namespace SpeechRecognizer
             },
             { "MSG_QUERY", (self, message) => 
                 {
-                    return;
+                    switch ((string)message.action)
+                    {
+                        case "load_grammar":
+                            {
+                                foreach (FieldInfo fieldinfo in message.data.grammar.GetType().GetFields())
+                                {
+                                    string inst = fieldinfo.Name;
+                                    string stat = (string)fieldinfo.GetValue(message.data.grammar);
+                                    self.addGrammar(inst, stat);
+                                }
+                                self.sendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
+                                break;
+                            }
+                        default:
+                            {
+                                break;
+                            }
+                    }
                 }
             },
             { "MSG_QUERY_SUCCESS", (self, message) =>
@@ -207,6 +228,17 @@ namespace SpeechRecognizer
             },
             { "MSG_BROADCAST", (self, message) =>
                 {
+                    try
+                    {
+                        self.removeGrammar(message.content.unloadGrammar);
+                        var obj = new {message = "Success"};
+                        self.sendJson("MSG_BROADCAST_SUCCESS", obj);
+                    }
+                    catch (RuntimeBinderException)
+                    {
+                        //Didn't have a grammar removal request
+                    }
+
                     return;
                 }
             },
@@ -222,7 +254,7 @@ namespace SpeechRecognizer
             }
         };
 
-        public async void startListening()
+        public async Task startListening()
         {
             await sendManifest();
             while (true) {
@@ -240,11 +272,19 @@ namespace SpeechRecognizer
         public void Up(List<string> instances)
         {
             //Connect to mic instances, hook up their streams to us
+            foreach (var name in instances)
+            {
+                addInputMic(name);
+            }
         }
 
         public void Down()
         {
             //Stop listening, no input sources available.
+            foreach (var kvs in sres)
+            {
+                removeInputMic(kvs.Key);
+            }
         }
 
         public async void closeConnection()

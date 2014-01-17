@@ -17,7 +17,7 @@ namespace SpeechRecognizer
             }
             var server = new SpeechServer();
 
-            server.connect(args[0], args[1]);
+            server.Connect(args[0], args[1]);
         }
     }
 }

@@ -64,7 +64,7 @@ namespace SpeechRecognizer
         }
 
         
-        public void addGrammar(string name, string xml)
+        public void AddGrammar(string name, string xml)
         {
             var gram = new CombinedGrammar(name, xml);
             grammars.Add(name, gram);
@@ -74,7 +74,7 @@ namespace SpeechRecognizer
             }
         }
 
-        public void removeGrammar(string name)
+        public void RemoveGrammar(string name)
         {
             foreach (var kv in sres)
             {
@@ -83,23 +83,23 @@ namespace SpeechRecognizer
             grammars.Remove(name);
         }
 
-        private void recognitionHandler(object sender, SpeechRecognizedEventArgs arg)
+        private void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
         {
             var text = arg.Result.Text;
             var tags = arg.Result.Semantics;
             var obj = new { content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
 
-            sendJson("MSG_BROADCAST", obj);
+            SendJson("MSG_BROADCAST", obj);
         }
 
-        public void addInputMic(string instance)
+        public void AddInputMic(string instance)
         {
             try 
             {
-                var negotiated = negotiateAudioStream(instance); //Throws IOException if connection cannot be made
+                var negotiated = NegotiateAudioStream(instance); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
                 sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
-                sre.SpeechRecognized += recognitionHandler;
+                sre.SpeechRecognized += RecognitionHandler;
                 sres.Add(instance, sre);
             }
             catch (IOException) 
@@ -108,7 +108,7 @@ namespace SpeechRecognizer
             }
         }
 
-        public void removeInputMic(string instance)
+        public void RemoveInputMic(string instance)
         {
             if (sres.ContainsKey(instance))
             {
@@ -117,7 +117,7 @@ namespace SpeechRecognizer
             }
         }
 
-        private NegotiatedAudioStream negotiateAudioStream(string instance)
+        private NegotiatedAudioStream NegotiateAudioStream(string instance)
         {
             //I have no clue how to do this right now.
             throw new IOException("Failed to negoiate an audio stream with "+instance);
@@ -125,12 +125,13 @@ namespace SpeechRecognizer
         }
 
         
-        private void Response(APP_MANIFEST_OK _, dynamic message)  
+        protected override void Response(APP_MANIFEST_OK type, dynamic message)  
         {
-            InstanceId = message.instanceId;
+            InstanceId = message["instanceId"];
+            Console.WriteLine("Recieved: " + type);
             return;
         }
-        private void Response(APP_DEPENDENCY _, dynamic message)  
+        protected override void Response(APP_DEPENDENCY _, dynamic message)  
         {
             try
             {
@@ -160,7 +161,7 @@ namespace SpeechRecognizer
             }
         }
             
-        private void Response(MSG_QUERY _, dynamic message)  
+        protected override void Response(MSG_QUERY _, dynamic message)  
         {
             switch ((string)message.action)
             {
@@ -170,9 +171,9 @@ namespace SpeechRecognizer
                         {
                             string inst = fieldinfo.Name;
                             string stat = (string)fieldinfo.GetValue(message.data.grammar);
-                            addGrammar(inst, stat);
+                            AddGrammar(inst, stat);
                         }
-                        sendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
+                        SendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
                         break;
                     }
                 default:
@@ -183,13 +184,13 @@ namespace SpeechRecognizer
         }
          
 
-        private void Response(MSG_BROADCAST _, dynamic message)
+        protected override void Response(MSG_BROADCAST _, dynamic message)
         {
             try
             {
-                removeGrammar(message.content.unloadGrammar);
+                RemoveGrammar(message.content.unloadGrammar);
                 var obj = new {message = "Success"};
-                sendJson("MSG_BROADCAST_SUCCESS", obj);
+                SendJson("MSG_BROADCAST_SUCCESS", obj);
             }
             catch (RuntimeBinderException)
             {
@@ -204,7 +205,7 @@ namespace SpeechRecognizer
             //Connect to mic instances, hook up their streams to us
             foreach (var name in instances)
             {
-                addInputMic(name);
+                AddInputMic(name);
             }
         }
 
@@ -213,7 +214,7 @@ namespace SpeechRecognizer
             //Stop listening, no input sources available.
             foreach (var kvs in sres)
             {
-                removeInputMic(kvs.Key);
+                RemoveInputMic(kvs.Key);
             }
         }
 

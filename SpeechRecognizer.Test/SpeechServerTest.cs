@@ -23,8 +23,8 @@ namespace SpeechRecognizer.Test
 
             var stream = new MemoryStream();
             var cli = new SpeechServer();
-            cli.setStream(stream);
-            await cli.sendManifest();
+            cli.SetStream(stream);
+            await cli.SendManifest();
 
             stream.Seek(0, SeekOrigin.Begin);
             var reader = new StreamReader(stream);

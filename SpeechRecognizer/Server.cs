@@ -33,14 +33,14 @@ namespace Mycroft.App
             var jsobj = ser.Deserialize<dynamic>(manifest);
             InstanceId = jsobj["instanceId"];
         }
-        public async void connect(string hostname, string port)
+        public async void Connect(string hostname, string port)
         {
             cli = new TcpClient(hostname, Convert.ToInt32(port));
-            setStream(cli.GetStream());
-            await startListening();
+            SetStream(cli.GetStream());
+            await StartListening();
         }
 
-        public void setStream(Stream s)
+        public void SetStream(Stream s)
         {
             stream = s;
             writer = new StreamWriter(s, enc);
@@ -53,18 +53,24 @@ namespace Mycroft.App
             return;
         }
 
+        protected abstract void Response(APP_MANIFEST_OK type, dynamic message);
+        protected abstract void Response(APP_DEPENDENCY type, dynamic message);
+        protected abstract void Response(MSG_QUERY type, dynamic message);
+        protected abstract void Response(MSG_BROADCAST type, dynamic message);
+
+
         private void Response(string badtype, dynamic jsonobj)
         {
             //This probably doesn't need to throw an error... a log might be sufficient.
             throw new ArgumentException("Invalid message type "+badtype+" recieved!");
         }
 
-        public async Task startListening()
+        public async Task StartListening()
         {
-            await sendManifest();
+            await SendManifest();
             while (true)
             {
-                dynamic obj = await readJson();
+                dynamic obj = await ReadJson();
                 string type = obj.type;
                 dynamic message = obj.message;
 
@@ -130,13 +136,13 @@ namespace Mycroft.App
         }
 
 
-        public async void closeConnection()
+        public async void CloseConnection()
         {
-            await sendData("APP_DOWN", "");
+            await SendData("APP_DOWN", "");
             cli.Close();
         }
 
-        public async Task sendData(string type, string data)
+        public async Task SendData(string type, string data)
         {
             string msg = type + " " + data;
             string composition = enc.GetBytes(msg).Length.ToString() + "\n" + msg;
@@ -144,7 +150,7 @@ namespace Mycroft.App
             writer.Flush();
         }
 
-        public async Task sendJson(string type, Object o)
+        public async Task SendJson(string type, Object o)
         {            
             string obj = ser.Serialize(o);
             string msg = type + " " + obj;
@@ -152,12 +158,12 @@ namespace Mycroft.App
             writer.Flush();
         }
 
-        public async Task sendManifest()
+        public async Task SendManifest()
         {
-            await sendData("APP_MANIFEST", manifest);
+            await SendData("APP_MANIFEST", manifest);
         }
 
-        public async Task<Object> readJson()
+        public async Task<Object> ReadJson()
         {
             //Size of message in bytes
             string len = reader.ReadLine();

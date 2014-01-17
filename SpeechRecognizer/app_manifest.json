@@ -4,7 +4,7 @@
     "displayName": "Mycroft Networked Speech Recognizer",
     "instanceId" : "primary",
     "capabilities": {
-        "speech-recognition": "1.0.0"
+        "stt": "1.0"
     },
     "API": "0",
     "description": "Lets applications register speech triggers for Mycroft to look for.",

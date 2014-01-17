@@ -131,7 +131,7 @@ namespace SpeechRecognizer
             Console.WriteLine("Recieved: " + type);
             return;
         }
-        protected override void Response(APP_DEPENDENCY _, dynamic message)  
+        protected async override void Response(APP_DEPENDENCY _, dynamic message)  
         {
             try
             {
@@ -161,9 +161,9 @@ namespace SpeechRecognizer
             }
         }
             
-        protected override void Response(MSG_QUERY _, dynamic message)  
+        protected async override void Response(MSG_QUERY _, dynamic message)  
         {
-            switch ((string)message.action)
+            switch ((string)message["action"])
             {
                 case "load_grammar":
                     {
@@ -173,7 +173,7 @@ namespace SpeechRecognizer
                             string stat = (string)fieldinfo.GetValue(message.data.grammar);
                             AddGrammar(inst, stat);
                         }
-                        SendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
+                        await SendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
                         break;
                     }
                 default:
@@ -184,13 +184,13 @@ namespace SpeechRecognizer
         }
          
 
-        protected override void Response(MSG_BROADCAST _, dynamic message)
+        protected async override void Response(MSG_BROADCAST _, dynamic message)
         {
             try
             {
                 RemoveGrammar(message.content.unloadGrammar);
                 var obj = new {message = "Success"};
-                SendJson("MSG_BROADCAST_SUCCESS", obj);
+                await SendJson("MSG_BROADCAST_SUCCESS", obj);
             }
             catch (RuntimeBinderException)
             {

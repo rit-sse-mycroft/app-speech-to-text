@@ -49,7 +49,6 @@ namespace Mycroft.App
 
         private void Response(MessageType type, dynamic jsonobj)
         {
-            Console.WriteLine("Recieved: " + type);
             return;
         }
 
@@ -173,8 +172,8 @@ namespace Mycroft.App
             var buf = new Char[size];
 
             //Get the message
-            await reader.ReadBlockAsync(buf, 0, size);
-            var str = new string(buf);
+            await reader.ReadAsync(buf, 0, size);
+            var str = new string(buf).Trim();
             var re = new Regex(@"^([A-Z_]*)");
 
             //Match the message type

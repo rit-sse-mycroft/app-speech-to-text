@@ -33,11 +33,11 @@ namespace Mycroft.App
             var jsobj = ser.Deserialize<dynamic>(manifest);
             InstanceId = jsobj["instanceId"];
         }
-        public void connect(string hostname, string port)
+        public async void connect(string hostname, string port)
         {
             cli = new TcpClient(hostname, Convert.ToInt32(port));
             setStream(cli.GetStream());
-            startListening();
+            await startListening();
         }
 
         public void setStream(Stream s)
@@ -49,6 +49,7 @@ namespace Mycroft.App
 
         private void Response(MessageType type, dynamic jsonobj)
         {
+            Console.WriteLine("Recieved: " + type);
             return;
         }
 
@@ -167,7 +168,7 @@ namespace Mycroft.App
 
             //Get the message
             await reader.ReadBlockAsync(buf, 0, size);
-            var str = Convert.ToString(buf);
+            var str = new string(buf);
             var re = new Regex(@"^([A-Z_]*)");
 
             //Match the message type

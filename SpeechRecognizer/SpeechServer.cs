@@ -167,13 +167,13 @@ namespace SpeechRecognizer
             {
                 case "load_grammar":
                     {
-                        foreach (FieldInfo fieldinfo in message.data.grammar.GetType().GetFields())
-                        {
-                            string inst = fieldinfo.Name;
-                            string stat = (string)fieldinfo.GetValue(message.data.grammar);
-                            AddGrammar(inst, stat);
-                        }
-                        await SendJson("MSG_QUERY_SUCCESS", new {ret = new {}});
+                        var grammar = message["data"]["grammar"];
+                        string name = grammar["name"];
+                        string xml = grammar["xml"];
+                        AddGrammar(name, xml);
+                        Console.WriteLine("Added Grammar " + name);
+
+                        await SendJson("MSG_QUERY_SUCCESS", new {id = message["id"], ret = new {}});
                         break;
                     }
                 default:

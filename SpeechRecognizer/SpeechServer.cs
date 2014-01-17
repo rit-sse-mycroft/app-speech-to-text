@@ -56,11 +56,26 @@ namespace SpeechRecognizer
 
         private Dictionary<string, SpeechRecognitionEngine> sres;
         private Dictionary<string, CombinedGrammar> grammars;
+        private string ipAddress;
+        private int port;
+  
 
         public SpeechServer() : base()
         {
             sres = new Dictionary<string, SpeechRecognitionEngine>();
             grammars = new Dictionary<string, CombinedGrammar>();
+            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
+            using (WebResponse response = request.GetResponse())
+            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
+            {
+                ipAddress = stream.ReadToEnd();
+            }
+
+            //Search for the ip in the html
+            int first = ipAddress.IndexOf("Address: ") + 9;
+            int last = ipAddress.LastIndexOf("</body>");
+            ipAddress = ipAddress.Substring(first, last - first);
+            port = 1848;
         }
 
         
@@ -176,6 +191,7 @@ namespace SpeechRecognizer
                         await SendJson("MSG_QUERY_SUCCESS", new {id = message["id"], ret = new {}});
                         break;
                     }
+   
                 default:
                     {
                         break;

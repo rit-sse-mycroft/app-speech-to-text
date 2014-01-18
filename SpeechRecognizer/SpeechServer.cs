@@ -50,6 +50,20 @@ namespace SpeechRecognizer
             this.input = stream;
         }
     }
+
+    class UdpState
+    {
+        public UdpClient client;
+        public IPEndPoint endPoint;
+        public MemoryStream stream;
+
+        public UdpState(UdpClient client, IPEndPoint endPoint, MemoryStream stream)
+        {
+            this.client = client;
+            this.endPoint = endPoint;
+            this.stream = stream;
+        }
+    }
     
     public class SpeechServer : Mycroft.App.Server
     {
@@ -85,7 +99,10 @@ namespace SpeechRecognizer
             grammars.Add(name, gram);
             foreach (var kv in sres)
             {
+                Console.WriteLine("Here");
+                kv.Value.RecognizeAsyncStop();
                 kv.Value.LoadGrammarAsync(gram.compiled);
+                kv.Value.RecognizeAsync(RecognizeMode.Multiple);
             }
         }
 
@@ -107,14 +124,31 @@ namespace SpeechRecognizer
             SendJson("MSG_BROADCAST", obj);
         }
 
-        public void AddInputMic(string instance)
+        static void SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        {
+            Console.WriteLine("Speech input was rejected.");
+            foreach (RecognizedPhrase phrase in e.Result.Alternates)
+            {
+                Console.WriteLine("  Rejected phrase: " + phrase.Text);
+                Console.WriteLine("  Confidence score: " + phrase.Confidence);
+            }
+        }
+
+        public void AddInputMic(string instance, Stream stream)
         {
             try 
             {
-                var negotiated = NegotiateAudioStream(instance); //Throws IOException if connection cannot be made
+                var negotiated = NegotiateAudioStream(instance, stream); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
+                //sre.SetInputToDefaultAudioDevice();
                 sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
-                sre.SpeechRecognized += RecognitionHandler;
+                //sre.SetInputToWaveStream(negotiated.input);
+                sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
+                sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
+                foreach (var g in grammars)
+                {
+                    sre.LoadGrammarAsync(g.Value.compiled);
+                }
                 sres.Add(instance, sre);
             }
             catch (IOException) 
@@ -132,11 +166,9 @@ namespace SpeechRecognizer
             }
         }
 
-        private NegotiatedAudioStream NegotiateAudioStream(string instance)
+        private NegotiatedAudioStream NegotiateAudioStream(string instance, Stream stream)
         {
-            //I have no clue how to do this right now.
-            throw new IOException("Failed to negoiate an audio stream with "+instance);
-            return new NegotiatedAudioStream(new MemoryStream(), 44100, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
+            return new NegotiatedAudioStream(stream, 44100, AudioBitsPerSample.Eight, AudioChannel.Stereo);
         }
 
         
@@ -188,15 +220,38 @@ namespace SpeechRecognizer
                         AddGrammar(name, xml);
                         Console.WriteLine("Added Grammar " + name);
 
-                        await SendJson("MSG_QUERY_SUCCESS", new {id = message["id"], ret = new {}});
+                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
                         break;
                     }
-   
+                case "request_stt":
+                    {
+                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new {ip = ipAddress, port = port}});
+
+                        MemoryStream ms = new MemoryStream();
+                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse("50.30.232.247"), port);
+                        UdpClient client = new UdpClient(ip);
+                        UdpState state = new UdpState(client, ip, ms);
+                        client.BeginReceive(new AsyncCallback(DataReceived), state);
+
+                        AddInputMic(message["id"], ms);
+                        port++;
+                        break;
+                    }
                 default:
                     {
                         break;
                     }
             }
+        }
+        private static void DataReceived(IAsyncResult ar)
+        {
+            UdpClient client = ((UdpState)ar.AsyncState).client;
+            IPEndPoint ipe = ((UdpState)ar.AsyncState).endPoint;
+            MemoryStream ms = ((UdpState)ar.AsyncState).stream;
+            Byte[] receivedBytes = client.EndReceive(ar, ref ipe);
+           // Console.WriteLine(Encoding.Default.GetString(receivedBytes));
+            ms.Write(receivedBytes, 0, receivedBytes.Length);
+            client.BeginReceive(new AsyncCallback(DataReceived), ar.AsyncState);
         }
          
 
@@ -221,7 +276,7 @@ namespace SpeechRecognizer
             //Connect to mic instances, hook up their streams to us
             foreach (var name in instances)
             {
-                AddInputMic(name);
+                //AddInputMic(name);
             }
         }
 

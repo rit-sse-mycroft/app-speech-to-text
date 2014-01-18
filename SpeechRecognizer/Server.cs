@@ -32,6 +32,7 @@ namespace Mycroft.App
             manifest = textStreamReader.ReadToEnd();
             var jsobj = ser.Deserialize<dynamic>(manifest);
             InstanceId = jsobj["instanceId"];
+
         }
         public async void Connect(string hostname, string port)
         {

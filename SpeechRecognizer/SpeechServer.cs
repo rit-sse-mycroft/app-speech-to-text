@@ -55,9 +55,9 @@ namespace SpeechRecognizer
     {
         public UdpClient client;
         public IPEndPoint endPoint;
-        public MemoryStream stream;
+        public SpeechStreamer stream;
 
-        public UdpState(UdpClient client, IPEndPoint endPoint, MemoryStream stream)
+        public UdpState(UdpClient client, IPEndPoint endPoint, SpeechStreamer stream)
         {
             this.client = client;
             this.endPoint = endPoint;
@@ -140,8 +140,8 @@ namespace SpeechRecognizer
             {
                 var negotiated = NegotiateAudioStream(instance, stream); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
-                //sre.SetInputToDefaultAudioDevice();
-                sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
+                sre.SetInputToDefaultAudioDevice();
+                //sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
                 //sre.SetInputToWaveStream(negotiated.input);
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
@@ -227,8 +227,8 @@ namespace SpeechRecognizer
                     {
                         await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new {ip = ipAddress, port = port}});
 
-                        MemoryStream ms = new MemoryStream();
-                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse("50.30.232.247"), port);
+                        SpeechStreamer ms = new SpeechStreamer(1316);
+                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
                         UdpClient client = new UdpClient(ip);
                         UdpState state = new UdpState(client, ip, ms);
                         client.BeginReceive(new AsyncCallback(DataReceived), state);
@@ -247,7 +247,7 @@ namespace SpeechRecognizer
         {
             UdpClient client = ((UdpState)ar.AsyncState).client;
             IPEndPoint ipe = ((UdpState)ar.AsyncState).endPoint;
-            MemoryStream ms = ((UdpState)ar.AsyncState).stream;
+            SpeechStreamer ms = ((UdpState)ar.AsyncState).stream;
             Byte[] receivedBytes = client.EndReceive(ar, ref ipe);
            // Console.WriteLine(Encoding.Default.GetString(receivedBytes));
             ms.Write(receivedBytes, 0, receivedBytes.Length);

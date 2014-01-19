@@ -118,7 +118,12 @@ namespace SpeechRecognizer
         private void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
         {
             var text = arg.Result.Text;
-            var tags = arg.Result.Semantics;
+            var semantics = arg.Result.Semantics;
+            var tags = new Dictionary<string, string>();
+            foreach (var kv in semantics)
+            {
+                tags.Add(kv.Key, (string) kv.Value.Value);
+            }
             var obj = new { content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
 
             SendJson("MSG_BROADCAST", obj);

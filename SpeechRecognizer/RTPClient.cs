@@ -16,7 +16,7 @@ namespace SpeechRecognizer
         private UdpClient client;
         private IPEndPoint endPoint;
         private SpeechStreamer audioStream;
-        private bool writeHeaderToConsole = true;
+        private bool writeHeaderToConsole = false;
         private bool listening = false;
         private int port;
         private Thread listenerThread;

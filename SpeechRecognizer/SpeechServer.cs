@@ -85,7 +85,6 @@ namespace SpeechRecognizer
             grammars.Add(name, gram);
             foreach (var kv in sres)
             {
-                Console.WriteLine("Here");
                 kv.Value.RecognizeAsyncStop();
                 kv.Value.LoadGrammarAsync(gram.compiled);
                 kv.Value.RecognizeAsync(RecognizeMode.Multiple);

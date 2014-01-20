@@ -50,20 +50,6 @@ namespace SpeechRecognizer
             this.input = stream;
         }
     }
-
-    class UdpState
-    {
-        public UdpClient client;
-        public IPEndPoint endPoint;
-        public SpeechStreamer stream;
-
-        public UdpState(UdpClient client, IPEndPoint endPoint, SpeechStreamer stream)
-        {
-            this.client = client;
-            this.endPoint = endPoint;
-            this.stream = stream;
-        }
-    }
     
     public class SpeechServer : Mycroft.App.Server
     {
@@ -145,9 +131,8 @@ namespace SpeechRecognizer
             {
                 var negotiated = NegotiateAudioStream(instance, stream); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
-                sre.SetInputToDefaultAudioDevice();
-                //sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
-                //sre.SetInputToWaveStream(negotiated.input);
+               
+                sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
                 foreach (var g in grammars)
@@ -173,7 +158,7 @@ namespace SpeechRecognizer
 
         private NegotiatedAudioStream NegotiateAudioStream(string instance, Stream stream)
         {
-            return new NegotiatedAudioStream(stream, 44100, AudioBitsPerSample.Eight, AudioChannel.Stereo);
+            return new NegotiatedAudioStream(stream, 16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
         }
 
         
@@ -230,15 +215,14 @@ namespace SpeechRecognizer
                     }
                 case "request_stt":
                     {
-                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new {ip = ipAddress, port = port}});
 
-                        SpeechStreamer ms = new SpeechStreamer(1316);
+                        SpeechStreamer ms = new SpeechStreamer(1475);
                         IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
-                        UdpClient client = new UdpClient(ip);
-                        UdpState state = new UdpState(client, ip, ms);
-                        client.BeginReceive(new AsyncCallback(DataReceived), state);
-
-                        AddInputMic(message["id"], ms);
+                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { ip = ipAddress, port = port } });
+                        
+                        RTPClient client = new RTPClient(port);
+                        client.StartClient();
+                        AddInputMic(message["id"], client.AudioStream);
                         port++;
                         break;
                     }
@@ -247,16 +231,6 @@ namespace SpeechRecognizer
                         break;
                     }
             }
-        }
-        private static void DataReceived(IAsyncResult ar)
-        {
-            UdpClient client = ((UdpState)ar.AsyncState).client;
-            IPEndPoint ipe = ((UdpState)ar.AsyncState).endPoint;
-            SpeechStreamer ms = ((UdpState)ar.AsyncState).stream;
-            Byte[] receivedBytes = client.EndReceive(ar, ref ipe);
-           // Console.WriteLine(Encoding.Default.GetString(receivedBytes));
-            ms.Write(receivedBytes, 0, receivedBytes.Length);
-            client.BeginReceive(new AsyncCallback(DataReceived), ar.AsyncState);
         }
          
 

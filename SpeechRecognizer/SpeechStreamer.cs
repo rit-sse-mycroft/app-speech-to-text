@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SpeechRecognizer
 {
-    class SpeechStreamer : Stream
+    public class SpeechStreamer : Stream
     {
         private AutoResetEvent _writeEvent;
         private List<byte> _buffer;
@@ -66,6 +66,7 @@ namespace SpeechRecognizer
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            //_buffer.Read(buffer, offset, count);
             int i = 0;
             while (i < count && _writeEvent != null)
             {
@@ -89,6 +90,7 @@ namespace SpeechRecognizer
 
         public override void Write(byte[] buffer, int offset, int count)
         {
+            //_buffer.Write(buffer, offset, count);
             for (int i = offset; i < offset + count; i++)
             {
                 _buffer[_writeposition] = buffer[i];

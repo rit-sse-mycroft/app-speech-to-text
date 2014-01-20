@@ -4,11 +4,11 @@
     "displayName": "Mycroft Networked Speech Recognizer",
     "instanceId" : "primary",
     "capabilities": {
-        "stt": "1.0"
+        "stt": "0.0.1"
     },
     "API": "0",
     "description": "Lets applications register speech triggers for Mycroft to look for.",
     "dependencies": {
-        "microphone": ">=1.0"
+        "microphone": "0.0.1"
     }
 }

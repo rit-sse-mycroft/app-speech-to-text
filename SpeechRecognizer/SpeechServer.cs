@@ -85,9 +85,8 @@ namespace SpeechRecognizer
             grammars.Add(name, gram);
             foreach (var kv in sres)
             {
-                kv.Value.RecognizeAsyncStop();
+                kv.Value.RequestRecognizerUpdate();
                 kv.Value.LoadGrammarAsync(gram.compiled);
-                kv.Value.RecognizeAsync(RecognizeMode.Multiple);
             }
         }
 
@@ -138,6 +137,10 @@ namespace SpeechRecognizer
                 {
                     sre.LoadGrammarAsync(g.Value.compiled);
                 }
+                if (sre.Grammars.Count > 0)
+                {
+                    sre.RecognizeAsync(RecognizeMode.Multiple);
+                }
                 sres.Add(instance, sre);
             }
             catch (IOException) 
@@ -161,39 +164,51 @@ namespace SpeechRecognizer
         }
 
         
-        protected override void Response(APP_MANIFEST_OK type, dynamic message)  
+        protected async override void Response(APP_MANIFEST_OK type, dynamic message)  
         {
             InstanceId = message["instanceId"];
             Console.WriteLine("Recieved: " + type);
+            await SendJson("APP_UP", new {});
             return;
         }
         protected async override void Response(APP_DEPENDENCY _, dynamic message)  
         {
             try
             {
-                dynamic mics = message.microphone;
-                var ups =  new List<string>();
-                foreach (FieldInfo fieldinfo in mics.GetType().GetFields())
+                dynamic mics = message["microphone"];
+                foreach (var mic in mics)
                 {
-                    string inst = fieldinfo.Name;
-                    string stat = (string)fieldinfo.GetValue(mics);
-                    if (stat == "up")
+                    if (mic.Value == "up")
                     {
-                        ups.Add(inst);
+                        if (sres.ContainsKey(mic.Key))
+                        {
+                            SpeechRecognitionEngine sre = sres[mic.Key];
+                            if (sre.AudioState == AudioState.Stopped)
+                                sre.RecognizeAsync(RecognizeMode.Multiple);
+                        } 
+                        else
+                        {
+                            await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = port } });
+                            IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+                            RTPClient client = new RTPClient(port);
+                            client.StartClient();
+                            AddInputMic(mic.Key, client.AudioStream);
+                            port++;
+                        }
                     }
-                }
-                if (ups.Count > 0)
-                {
-                    Up(ups);
-                }
-                else
-                {
-                    Down();
+                    else
+                    {
+                        if (sres.ContainsKey(mic.Key))
+                        {
+                            SpeechRecognitionEngine sre = sres[mic.Key];
+                            if (sre.AudioState != AudioState.Stopped)
+                                sre.RecognizeAsyncStop();
+                        }
+                    }
                 }
             }
             catch (RuntimeBinderException)
             {
-                Down();
             }
         }
             
@@ -210,19 +225,6 @@ namespace SpeechRecognizer
                         Console.WriteLine("Added Grammar " + name);
 
                         await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
-                        break;
-                    }
-                case "request_stt":
-                    {
-
-                        SpeechStreamer ms = new SpeechStreamer(1475);
-                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
-                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { ip = ipAddress, port = port } });
-                        
-                        RTPClient client = new RTPClient(port);
-                        client.StartClient();
-                        AddInputMic(message["id"], client.AudioStream);
-                        port++;
                         break;
                     }
                 default:
@@ -247,24 +249,6 @@ namespace SpeechRecognizer
             }
 
             return;
-        }
-
-        public void Up(List<string> instances)
-        {
-            //Connect to mic instances, hook up their streams to us
-            foreach (var name in instances)
-            {
-                //AddInputMic(name);
-            }
-        }
-
-        public void Down()
-        {
-            //Stop listening, no input sources available.
-            foreach (var kvs in sres)
-            {
-                RemoveInputMic(kvs.Key);
-            }
         }
 
     }

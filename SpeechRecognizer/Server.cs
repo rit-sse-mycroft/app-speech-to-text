@@ -145,6 +145,7 @@ namespace Mycroft.App
         public async Task SendData(string type, string data)
         {
             string msg = type + " " + data;
+            msg.Trim();
             string composition = enc.GetBytes(msg).Length.ToString() + "\n" + msg;
             await writer.WriteLineAsync(composition);
             writer.Flush();
@@ -154,6 +155,7 @@ namespace Mycroft.App
         {            
             string obj = ser.Serialize(o);
             string msg = type + " " + obj;
+            msg = msg.Trim();
             await writer.WriteLineAsync(enc.GetBytes(msg).Length.ToString() + "\n" + msg);
             writer.Flush();
         }

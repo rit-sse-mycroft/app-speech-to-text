@@ -56,7 +56,7 @@ namespace SpeechRecognizer
 
         private Dictionary<string, SpeechRecognitionEngine> sres;
         private Dictionary<string, object> mics;
-        private Dictionary<string, CombinedGrammar> grammars;
+        private Dictionary<string, string> grammars;
         private string ipAddress;
         private int port;
   
@@ -65,7 +65,7 @@ namespace SpeechRecognizer
         public SpeechServer() : base()
         {
             sres = new Dictionary<string, SpeechRecognitionEngine>();
-            grammars = new Dictionary<string, CombinedGrammar>();
+            grammars = new Dictionary<string, string>();
             WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
             using (WebResponse response = request.GetResponse())
             using (StreamReader stream = new StreamReader(response.GetResponseStream()))
@@ -83,10 +83,10 @@ namespace SpeechRecognizer
         
         public void AddGrammar(string name, string xml)
         {
-            var gram = new CombinedGrammar(name, xml);
-            grammars.Add(name, gram);
+            grammars.Add(name, xml);
             foreach (var kv in sres)
             {
+                var gram = new CombinedGrammar(name, xml);
                 SpeechRecognitionEngine sre = kv.Value;
                 sre.RequestRecognizerUpdate();
                 sre.LoadGrammarAsync(gram.compiled);
@@ -99,7 +99,23 @@ namespace SpeechRecognizer
         {
             foreach (var kv in sres)
             {
-                kv.Value.UnloadGrammar(grammars[name].compiled);
+                Grammar grammar = null;
+                foreach (var gram in kv.Value.Grammars)
+                {
+                    if (gram.Name == name)
+                    {
+                        grammar = gram;
+                        break;
+                    } 
+                }
+                try
+                {
+                    kv.Value.UnloadGrammar(grammar);
+                }
+                catch 
+                {
+                    Console.WriteLine("Grammar " + name + "not loaded.");
+                }
             }
             grammars.Remove(name);
         }
@@ -140,7 +156,8 @@ namespace SpeechRecognizer
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
                 foreach (var g in grammars)
                 {
-                    sre.LoadGrammarAsync(g.Value.compiled);
+                    var gram = new CombinedGrammar(g.Key, g.Value);
+                    sre.LoadGrammarAsync(gram.compiled);
                 }
                 if (sre.Grammars.Count > 0)
                 {

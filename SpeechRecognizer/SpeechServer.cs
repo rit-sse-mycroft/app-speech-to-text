@@ -41,6 +41,7 @@ namespace SpeechRecognizer
         private Dictionary<string, SpeechRecognitionEngine> sres;
         private Dictionary<string, object> mics;
         private Dictionary<string, string> grammars;
+        private Dictionary<SpeechRecognitionEngine, int> audioLevels;
         private string ipAddress;
         private int port;
   
@@ -50,6 +51,7 @@ namespace SpeechRecognizer
         {
             sres = new Dictionary<string, SpeechRecognitionEngine>();
             grammars = new Dictionary<string, string>();
+            audioLevels = new Dictionary<SpeechRecognitionEngine, int>();
             WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
             using (WebResponse response = request.GetResponse())
             using (StreamReader stream = new StreamReader(response.GetResponseStream()))
@@ -119,7 +121,7 @@ namespace SpeechRecognizer
             await SendJson("MSG_BROADCAST", obj);
         }
 
-        static void SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
+        private void RecognitionRejectedHandler(object sender, SpeechRecognitionRejectedEventArgs e)
         {
             Console.WriteLine("Speech input was rejected.");
             foreach (RecognizedPhrase phrase in e.Result.Alternates)
@@ -129,6 +131,12 @@ namespace SpeechRecognizer
             }
         }
 
+        private void AudioLevelUpdatedHandler(object sender, AudioLevelUpdatedEventArgs e)
+        {
+            audioLevels[(SpeechRecognitionEngine)sender] = e.AudioLevel;
+            Console.WriteLine("Audio Level: " + e.AudioLevel);
+        }
+
         public void AddInputMic(string instance, Stream stream)
         {
             try 
@@ -136,7 +144,10 @@ namespace SpeechRecognizer
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
                 sre.SetInputToAudioStream(stream, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
-                sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
+                sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(RecognitionRejectedHandler);
+                sre.AudioLevelUpdated += new EventHandler<AudioLevelUpdatedEventArgs>(AudioLevelUpdatedHandler);
+                sres.Add(instance, sre);
+                audioLevels.Add(sre, 0);
                 foreach (var g in grammars)
                 {
                     var gram = new CombinedGrammar(g.Key, g.Value);
@@ -146,7 +157,6 @@ namespace SpeechRecognizer
                 {
                     sre.RecognizeAsync(RecognizeMode.Multiple);
                 }
-                sres.Add(instance, sre);
             }
             catch (IOException) 
             {

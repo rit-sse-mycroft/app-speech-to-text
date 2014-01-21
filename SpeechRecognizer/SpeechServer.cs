@@ -110,6 +110,7 @@ namespace SpeechRecognizer
                 }
                 try
                 {
+                    kv.Value.RequestRecognizerUpdate();
                     kv.Value.UnloadGrammar(grammar);
                 }
                 catch 
@@ -258,13 +259,12 @@ namespace SpeechRecognizer
         }
          
 
-        protected async override void Response(MSG_BROADCAST _, dynamic message)
+        protected override void Response(MSG_BROADCAST _, dynamic message)
         {
             try
             {
-                RemoveGrammar(message.content.unloadGrammar);
-                var obj = new {message = "Success"};
-                await SendJson("MSG_BROADCAST_SUCCESS", obj);
+                RemoveGrammar(message["content"]["unloadGrammar"]);
+                Console.WriteLine("Removed Grammar " + message["content"]["unloadGrammar"]);
             }
             catch (RuntimeBinderException)
             {

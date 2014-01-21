@@ -55,9 +55,11 @@ namespace SpeechRecognizer
     {
 
         private Dictionary<string, SpeechRecognitionEngine> sres;
+        private Dictionary<string, object> mics;
         private Dictionary<string, CombinedGrammar> grammars;
         private string ipAddress;
         private int port;
+  
   
 
         public SpeechServer() : base()
@@ -85,8 +87,11 @@ namespace SpeechRecognizer
             grammars.Add(name, gram);
             foreach (var kv in sres)
             {
-                kv.Value.RequestRecognizerUpdate();
-                kv.Value.LoadGrammarAsync(gram.compiled);
+                SpeechRecognitionEngine sre = kv.Value;
+                sre.RequestRecognizerUpdate();
+                sre.LoadGrammarAsync(gram.compiled);
+                if ((string) mics[kv.Key] == "up" && sre.AudioState == AudioState.Stopped)
+                    sre.RecognizeAsync(RecognizeMode.Multiple);
             }
         }
 
@@ -175,10 +180,11 @@ namespace SpeechRecognizer
         {
             try
             {
-                dynamic mics = message["microphone"];
+               mics = message["microphone"];
+
                 foreach (var mic in mics)
                 {
-                    if (mic.Value == "up")
+                    if ((string) mic.Value == "up")
                     {
                         if (sres.ContainsKey(mic.Key))
                         {

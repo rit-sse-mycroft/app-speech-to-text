@@ -34,22 +34,6 @@ namespace SpeechRecognizer
             compiled.Name = name;
         }
     }
-
-    class NegotiatedAudioStream
-    {
-        public AudioBitsPerSample bps;
-        public AudioChannel channels;
-        public int rate;
-        public Stream input;
-
-        public NegotiatedAudioStream(Stream stream, int rate, AudioBitsPerSample bps, AudioChannel channels)
-        {
-            this.rate = rate;
-            this.bps = bps;
-            this.channels = channels;
-            this.input = stream;
-        }
-    }
     
     public class SpeechServer : Mycroft.App.Server
     {
@@ -121,7 +105,7 @@ namespace SpeechRecognizer
             grammars.Remove(name);
         }
 
-        private void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
+        private async void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
         {
             var text = arg.Result.Text;
             var semantics = arg.Result.Semantics;
@@ -132,7 +116,7 @@ namespace SpeechRecognizer
             }
             var obj = new { content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
 
-            SendJson("MSG_BROADCAST", obj);
+            await SendJson("MSG_BROADCAST", obj);
         }
 
         static void SpeechRecognitionRejected(object sender, SpeechRecognitionRejectedEventArgs e)
@@ -149,10 +133,8 @@ namespace SpeechRecognizer
         {
             try 
             {
-                var negotiated = NegotiateAudioStream(instance, stream); //Throws IOException if connection cannot be made
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
-               
-                sre.SetInputToAudioStream(negotiated.input, new SpeechAudioFormatInfo(negotiated.rate, negotiated.bps, negotiated.channels));
+                sre.SetInputToAudioStream(stream, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(SpeechRecognitionRejected);
                 foreach (var g in grammars)
@@ -180,12 +162,6 @@ namespace SpeechRecognizer
                 sres.Remove(instance);
             }
         }
-
-        private NegotiatedAudioStream NegotiateAudioStream(string instance, Stream stream)
-        {
-            return new NegotiatedAudioStream(stream, 16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono);
-        }
-
         
         protected async override void Response(APP_MANIFEST_OK type, dynamic message)  
         {
@@ -266,7 +242,7 @@ namespace SpeechRecognizer
                 RemoveGrammar(message["content"]["unloadGrammar"]);
                 Console.WriteLine("Removed Grammar " + message["content"]["unloadGrammar"]);
             }
-            catch (RuntimeBinderException)
+            catch
             {
                 //Didn't have a grammar removal request
             }

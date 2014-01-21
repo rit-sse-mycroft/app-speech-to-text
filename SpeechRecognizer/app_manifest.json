@@ -2,7 +2,7 @@
     "version": "0.0.1",
     "name": "speech-recognizer",
     "displayName": "Mycroft Networked Speech Recognizer",
-    "instanceId" : "primary",
+    "instanceId" : "stt1",
     "capabilities": {
         "stt": "0.0.1"
     },

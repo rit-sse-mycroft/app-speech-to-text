@@ -38,8 +38,7 @@ namespace SpeechRecognizer
     public class SpeechServer : Mycroft.App.Server
     {
 
-        private Dictionary<string, SpeechRecognitionEngine> sres;
-        private Dictionary<string, object> mics;
+        private Dictionary<string, Microphone> mics;
         private Dictionary<string, string> grammars;
         private Dictionary<SpeechRecognitionEngine, int> audioLevels;
         private string ipAddress;
@@ -49,7 +48,7 @@ namespace SpeechRecognizer
 
         public SpeechServer() : base()
         {
-            sres = new Dictionary<string, SpeechRecognitionEngine>();
+            mics = new Dictionary<string, Microphone>();
             grammars = new Dictionary<string, string>();
             audioLevels = new Dictionary<SpeechRecognitionEngine, int>();
             WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
@@ -70,23 +69,23 @@ namespace SpeechRecognizer
         public void AddGrammar(string name, string xml)
         {
             grammars.Add(name, xml);
-            foreach (var kv in sres)
+            foreach (var kv in mics)
             {
                 var gram = new CombinedGrammar(name, xml);
-                SpeechRecognitionEngine sre = kv.Value;
-                sre.RequestRecognizerUpdate();
-                sre.LoadGrammarAsync(gram.compiled);
-                if ((string) mics[kv.Key] == "up" && sre.AudioState == AudioState.Stopped)
-                    sre.RecognizeAsync(RecognizeMode.Multiple);
+                Microphone mic = kv.Value;
+                mic.Sre.RequestRecognizerUpdate();
+                mic.Sre.LoadGrammarAsync(gram.compiled);
+                if ((string) mic.Status == "up" && mic.Sre.AudioState == AudioState.Stopped)
+                    mic.Sre.RecognizeAsync(RecognizeMode.Multiple);
             }
         }
 
         public void RemoveGrammar(string name)
         {
-            foreach (var kv in sres)
+            foreach (var kv in mics)
             {
                 Grammar grammar = null;
-                foreach (var gram in kv.Value.Grammars)
+                foreach (var gram in kv.Value.Sre.Grammars)
                 {
                     if (gram.Name == name)
                     {
@@ -96,8 +95,8 @@ namespace SpeechRecognizer
                 }
                 try
                 {
-                    kv.Value.RequestRecognizerUpdate();
-                    kv.Value.UnloadGrammar(grammar);
+                    kv.Value.Sre.RequestRecognizerUpdate();
+                    kv.Value.Sre.UnloadGrammar(grammar);
                 }
                 catch 
                 {
@@ -137,7 +136,7 @@ namespace SpeechRecognizer
             Console.WriteLine("Audio Level: " + e.AudioLevel);
         }
 
-        public void AddInputMic(string instance, Stream stream)
+        public void AddInputMic(string instance, Stream stream, string status)
         {
             try 
             {
@@ -146,7 +145,7 @@ namespace SpeechRecognizer
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(RecognitionRejectedHandler);
                 sre.AudioLevelUpdated += new EventHandler<AudioLevelUpdatedEventArgs>(AudioLevelUpdatedHandler);
-                sres.Add(instance, sre);
+                mics.Add(instance, new Microphone(sre, status));
                 audioLevels.Add(sre, 0);
                 foreach (var g in grammars)
                 {
@@ -166,10 +165,10 @@ namespace SpeechRecognizer
 
         public void RemoveInputMic(string instance)
         {
-            if (sres.ContainsKey(instance))
+            if (mics.ContainsKey(instance))
             {
-                sres[instance].Dispose();
-                sres.Remove(instance);
+                mics[instance].Sre.RecognizeAsyncStop();
+                mics.Remove(instance);
             }
         }
         
@@ -177,22 +176,22 @@ namespace SpeechRecognizer
         {
             InstanceId = message["instanceId"];
             Console.WriteLine("Recieved: " + type);
-            await SendJson("APP_UP", new {});
+            await SendData("APP_UP", "");
             return;
         }
         protected async override void Response(APP_DEPENDENCY _, dynamic message)  
         {
             try
             {
-               mics = message["microphone"];
+                var dep = message["microphone"];
 
-                foreach (var mic in mics)
+                foreach (var mic in dep)
                 {
                     if ((string) mic.Value == "up")
                     {
-                        if (sres.ContainsKey(mic.Key))
+                        if (mics.ContainsKey(mic.Key))
                         {
-                            SpeechRecognitionEngine sre = sres[mic.Key];
+                            SpeechRecognitionEngine sre = mics[mic.Key].Sre;
                             if (sre.AudioState == AudioState.Stopped)
                                 sre.RecognizeAsync(RecognizeMode.Multiple);
                         } 
@@ -202,22 +201,22 @@ namespace SpeechRecognizer
                             IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
                             RTPClient client = new RTPClient(port);
                             client.StartClient();
-                            AddInputMic(mic.Key, client.AudioStream);
+                            AddInputMic(mic.Key, client.AudioStream, mic.Value);
                             port++;
                         }
                     }
                     else
                     {
-                        if (sres.ContainsKey(mic.Key))
+                        if (mics.ContainsKey(mic.Key))
                         {
-                            SpeechRecognitionEngine sre = sres[mic.Key];
+                            SpeechRecognitionEngine sre = mics[mic.Key].Sre;
                             if (sre.AudioState != AudioState.Stopped)
                                 sre.RecognizeAsyncStop();
                         }
                     }
                 }
             }
-            catch (RuntimeBinderException)
+            catch
             {
             }
         }

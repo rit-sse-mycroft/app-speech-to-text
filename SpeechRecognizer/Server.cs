@@ -8,7 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Mycroft.App.Message;
-using System.Web.Script.Serialization; //This can be used with dynamic, unlike the contract
+using System.Web.Script.Serialization;
+using System.Diagnostics; //This can be used with dynamic, unlike the contract
 
 namespace Mycroft.App
 {
@@ -17,11 +18,8 @@ namespace Mycroft.App
         private string manifest;
         private TcpClient cli;
         private Stream stream;
-        private StreamWriter writer;
-        private Encoding enc = new UTF8Encoding(true, true);
         private JavaScriptSerializer ser = new JavaScriptSerializer();
         private StreamReader reader;
-        
         public string InstanceId;
 
         public Server()
@@ -36,15 +34,9 @@ namespace Mycroft.App
         public async void Connect(string hostname, string port)
         {
             cli = new TcpClient(hostname, Convert.ToInt32(port));
-            SetStream(cli.GetStream());
+            stream = cli.GetStream();
+            reader = new StreamReader(stream);
             await StartListening();
-        }
-
-        public void SetStream(Stream s)
-        {
-            stream = s;
-            writer = new StreamWriter(s, enc);
-            reader = new StreamReader(s, enc);
         }
 
         private void Response(MessageType type, dynamic jsonobj)
@@ -140,14 +132,13 @@ namespace Mycroft.App
             await SendData("APP_DOWN", "");
             cli.Close();
         }
-
+        
         public async Task SendData(string type, string data)
         {
             string msg = type + " " + data;
-            msg.Trim();
-            string composition = enc.GetBytes(msg).Length.ToString() + "\n" + msg;
-            await writer.WriteLineAsync(composition);
-            writer.Flush();
+            msg = msg.Trim();
+            msg = Encoding.UTF8.GetByteCount(msg) + "\n" + msg;
+            stream.Write(Encoding.UTF8.GetBytes(msg), 0, (int) msg.Length);
         }
 
         public async Task SendJson(string type, Object o)
@@ -155,8 +146,8 @@ namespace Mycroft.App
             string obj = ser.Serialize(o);
             string msg = type + " " + obj;
             msg = msg.Trim();
-            await writer.WriteLineAsync(enc.GetBytes(msg).Length.ToString() + "\n" + msg);
-            writer.Flush();
+            msg = Encoding.UTF8.GetByteCount(msg) + "\n" + msg;
+            stream.Write(Encoding.UTF8.GetBytes(msg), 0, (int) msg.Length);
         }
 
         public async Task SendManifest()

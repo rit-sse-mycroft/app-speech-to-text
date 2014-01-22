@@ -6,7 +6,7 @@
     "capabilities": {
         "stt": "0.0.1"
     },
-    "API": "0",
+    "API": 0,
     "description": "Lets applications register speech triggers for Mycroft to look for.",
     "dependencies": {
         "microphone": "0.0.1"

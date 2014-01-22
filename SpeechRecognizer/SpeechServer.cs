@@ -116,7 +116,7 @@ namespace SpeechRecognizer
             {
                 tags.Add(kv.Key, (string) kv.Value.Value);
             }
-            var obj = new { content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
+            var obj = new { id = Guid.NewGuid(), content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
 
             await SendJson("MSG_BROADCAST", obj);
         }

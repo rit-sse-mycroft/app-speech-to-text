@@ -236,28 +236,18 @@ namespace SpeechRecognizer
                         await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
                         break;
                     }
+                case "unload_grammar":
+                    {
+                        var grammar = message["data"]["grammar"];
+                        RemoveGrammar(grammar);
+                        Console.WriteLine("Removed Grammar " + grammar);
+                        break;
+                    }
                 default:
                     {
                         break;
                     }
             }
         }
-         
-
-        protected override void Response(MSG_BROADCAST _, dynamic message)
-        {
-            try
-            {
-                RemoveGrammar(message["content"]["unloadGrammar"]);
-                Console.WriteLine("Removed Grammar " + message["content"]["unloadGrammar"]);
-            }
-            catch
-            {
-                //Didn't have a grammar removal request
-            }
-
-            return;
-        }
-
     }
 }

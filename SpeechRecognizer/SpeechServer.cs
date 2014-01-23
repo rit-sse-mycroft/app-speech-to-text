@@ -111,14 +111,20 @@ namespace SpeechRecognizer
         {
             var text = arg.Result.Text;
             var semantics = arg.Result.Semantics;
-            var tags = new Dictionary<string, string>();
-            foreach (var kv in semantics)
+            Console.WriteLine("Speech input was accepted.");
+            Console.WriteLine("  Accepted Phrase: " + text);
+            Console.WriteLine("  Confidence Score: " + arg.Result.Confidence);
+            if (arg.Result.Confidence >= 0.85)
             {
-                tags.Add(kv.Key, (string) kv.Value.Value);
-            }
-            var obj = new { id = Guid.NewGuid(), content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
+                var tags = new Dictionary<string, string>();
+                foreach (var kv in semantics)
+                {
+                    tags.Add(kv.Key, (string)kv.Value.Value);
+                }
+                var obj = new { id = Guid.NewGuid(), content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
 
-            await SendJson("MSG_BROADCAST", obj);
+                await SendJson("MSG_BROADCAST", obj);
+            }
         }
 
         private void RecognitionRejectedHandler(object sender, SpeechRecognitionRejectedEventArgs e)

@@ -68,6 +68,7 @@ namespace SpeechRecognizer
         
         public void AddGrammar(string name, string xml)
         {
+
             grammars.Add(name, xml);
             foreach (var kv in mics)
             {
@@ -230,10 +231,18 @@ namespace SpeechRecognizer
                         var grammar = message["data"]["grammar"];
                         string name = grammar["name"];
                         string xml = grammar["xml"];
-                        AddGrammar(name, xml);
-                        Console.WriteLine("Added Grammar " + name);
+                        try
+                        {
+                            AddGrammar(name, xml);
+                            Console.WriteLine("Added Grammar " + name);
 
-                        await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
+                            await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
+                        }
+                        catch(ArgumentException)
+                        {
+                            SendJson("MSG_QUERY_FAIL", new { id = message["id"], message = "Grammar has already been added" });
+                            Console.WriteLine("Couldn't add the grammar.");
+                        }
                         break;
                     }
                 case "unload_grammar":

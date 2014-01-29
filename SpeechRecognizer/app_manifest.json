@@ -9,6 +9,7 @@
     "API": 0,
     "description": "Lets applications register speech triggers for Mycroft to look for.",
     "dependencies": {
-        "microphone": "0.0.1"
+        "microphone": "0.0.1",
+        "mock_microphone": "0.0.1"
     }
 }

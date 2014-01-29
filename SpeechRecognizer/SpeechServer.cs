@@ -76,8 +76,6 @@ namespace SpeechRecognizer
                 Microphone mic = kv.Value;
                 mic.Sre.RequestRecognizerUpdate();
                 mic.Sre.LoadGrammarAsync(gram.compiled);
-                if ((string) mic.Status == "up" && mic.Sre.AudioState == AudioState.Stopped)
-                    mic.Sre.RecognizeAsync(RecognizeMode.Multiple);
             }
         }
 
@@ -114,7 +112,8 @@ namespace SpeechRecognizer
             Console.WriteLine("Speech input was accepted.");
             Console.WriteLine("  Accepted Phrase: " + text);
             Console.WriteLine("  Confidence Score: " + arg.Result.Confidence);
-            if (arg.Result.Confidence >= 0.85)
+
+            if (arg.Result.Grammar.Name != "dictation")
             {
                 var tags = new Dictionary<string, string>();
                 foreach (var kv in semantics)
@@ -143,7 +142,7 @@ namespace SpeechRecognizer
             Console.WriteLine("Audio Level: " + e.AudioLevel);
         }
 
-        public void AddInputMic(string instance, Stream stream, string status)
+        public void AddInputMic(string instance, Stream stream, string status, bool shouldBeOn)
         {
             try 
             {
@@ -152,14 +151,17 @@ namespace SpeechRecognizer
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(RecognitionRejectedHandler);
                 sre.AudioLevelUpdated += new EventHandler<AudioLevelUpdatedEventArgs>(AudioLevelUpdatedHandler);
-                mics.Add(instance, new Microphone(sre, status));
-                audioLevels.Add(sre, 0);
+                DictationGrammar customDictationGrammar  = new DictationGrammar("grammar:dictation");
+                customDictationGrammar.Name = "dictation";
+                customDictationGrammar.Enabled = true;
+                sre.LoadGrammar(customDictationGrammar);
+                mics.Add(instance, new Microphone(sre, status, shouldBeOn));
                 foreach (var g in grammars)
                 {
                     var gram = new CombinedGrammar(g.Key, g.Value);
                     sre.LoadGrammarAsync(gram.compiled);
                 }
-                if (sre.Grammars.Count > 0)
+                if (shouldBeOn)
                 {
                     sre.RecognizeAsync(RecognizeMode.Multiple);
                 }
@@ -188,44 +190,17 @@ namespace SpeechRecognizer
         }
         protected async override void Response(APP_DEPENDENCY _, dynamic message)  
         {
-            try
+            if (message.ContainsKey("microphone"))
             {
                 var dep = message["microphone"];
-
-                foreach (var mic in dep)
-                {
-                    if ((string) mic.Value == "up")
-                    {
-                        if (mics.ContainsKey(mic.Key))
-                        {
-                            SpeechRecognitionEngine sre = mics[mic.Key].Sre;
-                            if (sre.AudioState == AudioState.Stopped)
-                                sre.RecognizeAsync(RecognizeMode.Multiple);
-                        } 
-                        else
-                        {
-                            await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = port } });
-                            IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
-                            RTPClient client = new RTPClient(port);
-                            client.StartClient();
-                            AddInputMic(mic.Key, client.AudioStream, mic.Value);
-                            port++;
-                        }
-                    }
-                    else
-                    {
-                        if (mics.ContainsKey(mic.Key))
-                        {
-                            SpeechRecognitionEngine sre = mics[mic.Key].Sre;
-                            if (sre.AudioState != AudioState.Stopped)
-                                sre.RecognizeAsyncStop();
-                        }
-                    }
-                }
+                DepenedencyHelper(dep, true);
             }
-            catch
+            if (message.ContainsKey("mock_microphone"))
             {
+                var dep = message["mock_microphone"];
+                DepenedencyHelper(dep, false);
             }
+
         }
             
         protected async override void Response(MSG_QUERY _, dynamic message)  
@@ -264,5 +239,51 @@ namespace SpeechRecognizer
                     }
             }
         }
+
+        protected async override void Response(MSG_BROADCAST type, dynamic message)
+        {
+            var content = message["content"];
+            string from = message["fromInstanceId"];
+            if (content.ContainsKey("spoken_text"))
+            {
+                SpeechRecognitionEngine sre = mics[from].Sre;
+                sre.EmulateRecognize(content["spoken_text"]);
+            }
+        }
+
+        private async void DepenedencyHelper(dynamic dep, bool shouldBeOn)
+        {
+            foreach (var mic in dep)
+            {
+                if ((string)mic.Value == "up")
+                {
+                    if (mics.ContainsKey(mic.Key))
+                    {
+                        SpeechRecognitionEngine sre = mics[mic.Key].Sre;
+                        if (sre.AudioState == AudioState.Stopped && mics[mic.Key].ShouldBeOn)
+                            sre.RecognizeAsync(RecognizeMode.Multiple);
+                    }
+                    else
+                    {
+                        await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = port } });
+                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+                        RTPClient client = new RTPClient(port);
+                        client.StartClient();
+                        AddInputMic(mic.Key, client.AudioStream, mic.Value, shouldBeOn);
+                        port++;
+                    }
+                }
+                else
+                {
+                    if (mics.ContainsKey(mic.Key))
+                    {
+                        SpeechRecognitionEngine sre = mics[mic.Key].Sre;
+                        if (sre.AudioState != AudioState.Stopped && shouldBeOn)
+                            sre.RecognizeAsyncStop();
+                    }
+                }
+            }
+        }
+        
     }
 }

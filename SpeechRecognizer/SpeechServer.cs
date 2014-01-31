@@ -155,7 +155,7 @@ namespace SpeechRecognizer
                 customDictationGrammar.Name = "dictation";
                 customDictationGrammar.Enabled = true;
                 sre.LoadGrammar(customDictationGrammar);
-                mics.Add(instance, new Microphone(sre, status, shouldBeOn));
+                mics.Add(instance, new Microphone(sre, status, shouldBeOn,port));
                 foreach (var g in grammars)
                 {
                     var gram = new CombinedGrammar(g.Key, g.Value);
@@ -265,13 +265,13 @@ namespace SpeechRecognizer
                     }
                     else
                     {
-                        await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = port } });
                         IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
                         RTPClient client = new RTPClient(port);
                         client.StartClient();
                         AddInputMic(mic.Key, client.AudioStream, mic.Value, shouldBeOn);
                         port++;
                     }
+                    await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = mics[mic.Key].Port } });
                 }
                 else
                 {

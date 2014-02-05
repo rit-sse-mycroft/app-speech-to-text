@@ -16,7 +16,7 @@ namespace SpeechRecognizer
                 Console.WriteLine("Expected arguments in the form speechrecognizer host port");
                 return;
             }
-            var server = new SpeechServer();
+            var server = new SpeechClient("app_manifest.json");
             server.Connect(args[0], args[1]);
         }
     }

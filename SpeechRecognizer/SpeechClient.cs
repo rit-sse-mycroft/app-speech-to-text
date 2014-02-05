@@ -14,7 +14,7 @@ using System.Globalization;
 using System.Speech.Recognition.SrgsGrammar;
 using System.Xml;
 using System.Speech.AudioFormat;
-using Mycroft.App.Message;
+using Mycroft.App;
 
 namespace SpeechRecognizer
 {
@@ -35,7 +35,7 @@ namespace SpeechRecognizer
         }
     }
     
-    public class SpeechServer : Mycroft.App.Server
+    public class SpeechClient : Client
     {
 
         private Dictionary<string, Microphone> mics;
@@ -46,7 +46,7 @@ namespace SpeechRecognizer
   
   
 
-        public SpeechServer() : base()
+        public SpeechClient(string manifest) : base(manifest)
         {
             mics = new Dictionary<string, Microphone>();
             grammars = new Dictionary<string, string>();
@@ -63,9 +63,13 @@ namespace SpeechRecognizer
             int last = ipAddress.LastIndexOf("</body>");
             ipAddress = ipAddress.Substring(first, last - first);
             port = 1848;
+            handler.On("APP_MANIFEST_OK", AppManifestOk);
+            handler.On("APP_DEPENDENCY", AppDependency);
+            handler.On("MSG_QUERY", MsgQuery);
+            handler.On("MSG_BROADCAST", MsgBroadcast);
         }
 
-        
+        #region Grammars
         public void AddGrammar(string name, string xml)
         {
 
@@ -104,7 +108,8 @@ namespace SpeechRecognizer
             }
             grammars.Remove(name);
         }
-
+        #endregion
+        #region Speech Recognition Handlers
         private async void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
         {
             var text = arg.Result.Text;
@@ -120,9 +125,9 @@ namespace SpeechRecognizer
                 {
                     tags.Add(kv.Key, (string)kv.Value.Value);
                 }
-                var obj = new { id = Guid.NewGuid(), content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name } };
+                var content = new { text = text, tags = tags, grammar = arg.Result.Grammar.Name };
 
-                await SendJson("MSG_BROADCAST", obj);
+                await Broadcast(content);
             }
         }
 
@@ -135,13 +140,8 @@ namespace SpeechRecognizer
                 Console.WriteLine("  Confidence score: " + phrase.Confidence);
             }
         }
-
-        private void AudioLevelUpdatedHandler(object sender, AudioLevelUpdatedEventArgs e)
-        {
-            audioLevels[(SpeechRecognitionEngine)sender] = e.AudioLevel;
-            Console.WriteLine("Audio Level: " + e.AudioLevel);
-        }
-
+        #endregion
+        #region Mics
         public void AddInputMic(string instance, Stream stream, string status, bool shouldBeOn)
         {
             try 
@@ -150,7 +150,6 @@ namespace SpeechRecognizer
                 sre.SetInputToAudioStream(stream, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(RecognitionRejectedHandler);
-                sre.AudioLevelUpdated += new EventHandler<AudioLevelUpdatedEventArgs>(AudioLevelUpdatedHandler);
                 DictationGrammar customDictationGrammar  = new DictationGrammar("grammar:dictation");
                 customDictationGrammar.Name = "dictation";
                 customDictationGrammar.Enabled = true;
@@ -180,15 +179,15 @@ namespace SpeechRecognizer
                 mics.Remove(instance);
             }
         }
-        
-        protected async override void Response(APP_MANIFEST_OK type, dynamic message)  
+        #endregion
+        #region Message Handlers
+        protected async void AppManifestOk(dynamic message)  
         {
             InstanceId = message["instanceId"];
-            Console.WriteLine("Recieved: " + type);
-            await SendData("APP_UP", "");
-            return;
+            await Up();
         }
-        protected async override void Response(APP_DEPENDENCY _, dynamic message)  
+
+        protected void AppDependency(dynamic message)  
         {
             if (message.ContainsKey("microphone"))
             {
@@ -203,7 +202,7 @@ namespace SpeechRecognizer
 
         }
             
-        protected async override void Response(MSG_QUERY _, dynamic message)  
+        protected async void MsgQuery(dynamic message)  
         {
             switch ((string)message["action"])
             {
@@ -217,11 +216,11 @@ namespace SpeechRecognizer
                             AddGrammar(name, xml);
                             Console.WriteLine("Added Grammar " + name);
 
-                            await SendJson("MSG_QUERY_SUCCESS", new { id = message["id"], ret = new { } });
+                            await QuerySuccess(message["id"], new { });
                         }
                         catch(ArgumentException)
                         {
-                            SendJson("MSG_QUERY_FAIL", new { id = message["id"], message = "Grammar has already been added" });
+                            QueryFail(message["id"], "Grammar has already been added");
                             Console.WriteLine("Couldn't add the grammar.");
                         }
                         break;
@@ -240,7 +239,7 @@ namespace SpeechRecognizer
             }
         }
 
-        protected async override void Response(MSG_BROADCAST type, dynamic message)
+        protected void MsgBroadcast(dynamic message)
         {
             var content = message["content"];
             string from = message["fromInstanceId"];
@@ -271,7 +270,7 @@ namespace SpeechRecognizer
                         AddInputMic(mic.Key, client.AudioStream, mic.Value, shouldBeOn);
                         port++;
                     }
-                    await SendJson("MSG_QUERY", new { id = Guid.NewGuid(), capability = "microphone", action = "invite", instanceId = new string[1] { mic.Key }, priority = 30, data = new { ip = ipAddress, port = mics[mic.Key].Port } });
+                    await Query("microphone", "invite", new { ip = ipAddress, port = mics[mic.Key].Port }, new string[1] { mic.Key });
                 }
                 else
                 {
@@ -284,6 +283,6 @@ namespace SpeechRecognizer
                 }
             }
         }
-        
+        #endregion
     }
 }

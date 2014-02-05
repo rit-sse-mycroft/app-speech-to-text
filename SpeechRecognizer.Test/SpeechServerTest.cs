@@ -22,7 +22,7 @@ namespace SpeechRecognizer.Test
         {
 
             var stream = new MemoryStream();
-            var cli = new SpeechServer();
+            var cli = new SpeechClient();
             cli.SetStream(stream);
             await cli.SendManifest();
 

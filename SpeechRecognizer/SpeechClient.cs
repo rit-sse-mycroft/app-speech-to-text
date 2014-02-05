@@ -35,6 +35,9 @@ namespace SpeechRecognizer
         }
     }
     
+    /// <summary>
+    /// The Speech to text class
+    /// </summary>
     public class SpeechClient : Client
     {
 
@@ -45,7 +48,10 @@ namespace SpeechRecognizer
         private int port;
   
   
-
+        /// <summary>
+        /// Constructor for Speech client
+        /// </summary>
+        /// <param name="manifest">path to the app manifest</param>
         public SpeechClient(string manifest) : base(manifest)
         {
             mics = new Dictionary<string, Microphone>();
@@ -70,6 +76,11 @@ namespace SpeechRecognizer
         }
 
         #region Grammars
+        /// <summary>
+        /// Adds a new grammar to the SREs
+        /// </summary>
+        /// <param name="name">the name of the grammar</param>
+        /// <param name="xml">the grammar xml string</param>
         public void AddGrammar(string name, string xml)
         {
 
@@ -83,6 +94,10 @@ namespace SpeechRecognizer
             }
         }
 
+        /// <summary>
+        /// Removes a grammar from the SREs
+        /// </summary>
+        /// <param name="name">the name of the grammar</param>
         public void RemoveGrammar(string name)
         {
             foreach (var kv in mics)
@@ -110,6 +125,11 @@ namespace SpeechRecognizer
         }
         #endregion
         #region Speech Recognition Handlers
+        /// <summary>
+        /// Called when speech is recognized
+        /// </summary>
+        /// <param name="sender">the sender</param>
+        /// <param name="arg">the result</param>
         private async void RecognitionHandler(object sender, SpeechRecognizedEventArgs arg)
         {
             var text = arg.Result.Text;
@@ -131,6 +151,11 @@ namespace SpeechRecognizer
             }
         }
 
+        /// <summary>
+        /// Called when speech is rejected
+        /// </summary>
+        /// <param name="sender">the sender</param>
+        /// <param name="e">the result</param>
         private void RecognitionRejectedHandler(object sender, SpeechRecognitionRejectedEventArgs e)
         {
             Console.WriteLine("Speech input was rejected.");
@@ -142,6 +167,13 @@ namespace SpeechRecognizer
         }
         #endregion
         #region Mics
+        /// <summary>
+        /// Adds a new microphone instance
+        /// </summary>
+        /// <param name="instance">The instance id of the microphone</param>
+        /// <param name="stream">The audio stream</param>
+        /// <param name="status">The status of the microphone</param>
+        /// <param name="shouldBeOn">Whether the speech recognition engine should be turned on</param>
         public void AddInputMic(string instance, Stream stream, string status, bool shouldBeOn)
         {
             try 
@@ -171,6 +203,10 @@ namespace SpeechRecognizer
             }
         }
 
+        /// <summary>
+        /// Removes a microphone 
+        /// </summary>
+        /// <param name="instance">The instance ID of a microphone</param>
         public void RemoveInputMic(string instance)
         {
             if (mics.ContainsKey(instance))
@@ -181,12 +217,20 @@ namespace SpeechRecognizer
         }
         #endregion
         #region Message Handlers
+        /// <summary>
+        /// Called when APP_MANIFEST_OK is recieved
+        /// </summary>
+        /// <param name="message">The message recieved</param>
         protected async void AppManifestOk(dynamic message)  
         {
             InstanceId = message["instanceId"];
             await Up();
         }
 
+        /// <summary>
+        /// Called when APP_DEPENDENCY is recieved
+        /// </summary>
+        /// <param name="message">The message recieved</param>
         protected void AppDependency(dynamic message)  
         {
             if (message.ContainsKey("microphone"))
@@ -201,7 +245,11 @@ namespace SpeechRecognizer
             }
 
         }
-            
+        
+        /// <summary>
+        /// Called when MSG_QUERY is recieved
+        /// </summary>
+        /// <param name="message">The message recieved</param>
         protected async void MsgQuery(dynamic message)  
         {
             switch ((string)message["action"])
@@ -239,6 +287,10 @@ namespace SpeechRecognizer
             }
         }
 
+        /// <summary>
+        /// Called when MSG_BROADCAST is recieved
+        /// </summary>
+        /// <param name="message">The message recieved</param>
         protected void MsgBroadcast(dynamic message)
         {
             var content = message["content"];
@@ -250,6 +302,11 @@ namespace SpeechRecognizer
             }
         }
 
+        /// <summary>
+        /// Helper method for dependencies
+        /// </summary>
+        /// <param name="dep">The dependencies</param>
+        /// <param name="shouldBeOn">Should the SRE associated with this microphone be turned on or not</param>
         private async void DepenedencyHelper(dynamic dep, bool shouldBeOn)
         {
             foreach (var mic in dep)

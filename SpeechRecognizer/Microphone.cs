@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace SpeechRecognizer
 {
+    /// <summary>
+    /// Class representing a Microphone instance
+    /// </summary>
     class Microphone
     {
         private SpeechRecognitionEngine sre;
@@ -14,6 +17,13 @@ namespace SpeechRecognizer
         private bool shouldBeOn;
         private int port;
 
+        /// <summary>
+        /// Constructor for a Microphone
+        /// </summary>
+        /// <param name="sre">The speech recognition engine associate with this microphone</param>
+        /// <param name="status">The status of the microphone</param>
+        /// <param name="shouldBeOn">Should the speech recognition engine for this microphone be on</param>
+        /// <param name="port">The por this microphone is asociated with</param>
         public Microphone(SpeechRecognitionEngine sre, string status, bool shouldBeOn, int port)
         {
             this.sre = sre;

@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 namespace Mycroft.App
 {
     /// <summary>
-    /// Delegate for any recieved Messages
+    /// Delegate for any received Messages
     /// </summary>
-    /// <param name="data">The message body recieved from Mycroft</param>
+    /// <param name="data">The message body received from Mycroft</param>
     public delegate void MsgHandler(dynamic data);
 
     /// <summary>

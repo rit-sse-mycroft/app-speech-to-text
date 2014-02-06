@@ -129,7 +129,7 @@ namespace Mycroft.App
         /// <summary>
         /// Reads in json from the Mycroft server.
         /// </summary>
-        /// <returns>An object with the type and message recieved</returns>
+        /// <returns>An object with the type and message received</returns>
         private async Task<Object> ReadJson()
         {
             //Size of message in bytes
@@ -153,7 +153,7 @@ namespace Mycroft.App
 
             //Convert the json string to an object
             var jsonstr = str.TrimStart(match.Value.ToCharArray());
-            Logger.GetInstance().Info("Recieved Message " + match.Value);
+            Logger.GetInstance().Info("Got Message " + match.Value);
             Logger.GetInstance().Debug(jsonstr);
             if (jsonstr.Trim().Length == 0)
             {

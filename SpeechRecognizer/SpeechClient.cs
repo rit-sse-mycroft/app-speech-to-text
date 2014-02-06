@@ -218,9 +218,9 @@ namespace SpeechRecognizer
         #endregion
         #region Message Handlers
         /// <summary>
-        /// Called when APP_MANIFEST_OK is recieved
+        /// Called when APP_MANIFEST_OK is received
         /// </summary>
-        /// <param name="message">The message recieved</param>
+        /// <param name="message">The message received</param>
         protected async void AppManifestOk(dynamic message)  
         {
             InstanceId = message["instanceId"];
@@ -228,9 +228,9 @@ namespace SpeechRecognizer
         }
 
         /// <summary>
-        /// Called when APP_DEPENDENCY is recieved
+        /// Called when APP_DEPENDENCY is received
         /// </summary>
-        /// <param name="message">The message recieved</param>
+        /// <param name="message">The message received</param>
         protected void AppDependency(dynamic message)  
         {
             if (message.ContainsKey("microphone"))
@@ -247,9 +247,9 @@ namespace SpeechRecognizer
         }
         
         /// <summary>
-        /// Called when MSG_QUERY is recieved
+        /// Called when MSG_QUERY is received
         /// </summary>
-        /// <param name="message">The message recieved</param>
+        /// <param name="message">The message received</param>
         protected async void MsgQuery(dynamic message)  
         {
             switch ((string)message["action"])
@@ -288,9 +288,9 @@ namespace SpeechRecognizer
         }
 
         /// <summary>
-        /// Called when MSG_BROADCAST is recieved
+        /// Called when MSG_BROADCAST is received
         /// </summary>
-        /// <param name="message">The message recieved</param>
+        /// <param name="message">The message received</param>
         protected void MsgBroadcast(dynamic message)
         {
             var content = message["content"];

@@ -280,7 +280,7 @@ namespace Mycroft.App
                 id = id,
                 message = message
             };
-            SendJson("MSG_QUERRY_FAIL", queryFail);
+            SendJson("MSG_QUERY_FAIL", queryFail);
         }
         #endregion
     }

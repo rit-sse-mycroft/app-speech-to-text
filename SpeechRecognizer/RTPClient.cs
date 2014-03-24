@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 using System.IO;
+using System.Text;
 
 namespace SpeechRecognizer
 {
@@ -121,9 +122,8 @@ namespace SpeechRecognizer
                         timestamp,
                         ssrcId);
                 }
-
                 // Write the packet to the audio stream
-                audioStream.Write(packet, 12, packet.Length - 12);
+                audioStream.Write(packet, 0, packet.Length);
             }
         }
 

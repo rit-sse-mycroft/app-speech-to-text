@@ -321,8 +321,7 @@ namespace SpeechRecognizer
                     }
                     else
                     {
-                        IPEndPoint ip = new IPEndPoint(IPAddress.Parse(ipAddress), port);
-                        RTPClient client = new RTPClient(port);
+                        UDPClient client = new UDPClient(port);
                         client.StartClient();
                         AddInputMic(mic.Key, client.AudioStream, mic.Value, shouldBeOn);
                         port++;

@@ -174,19 +174,19 @@ namespace SpeechRecognizer
         /// <param name="stream">The audio stream</param>
         /// <param name="status">The status of the microphone</param>
         /// <param name="shouldBeOn">Whether the speech recognition engine should be turned on</param>
-        public void AddInputMic(string instance, Stream stream, string status, bool shouldBeOn)
+        public void AddInputMic(string instance, UDPClient client, string status, bool shouldBeOn)
         {
             try 
             {
                 var sre = new SpeechRecognitionEngine(new CultureInfo("en-US"));
-                sre.SetInputToAudioStream(stream, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
+                sre.SetInputToAudioStream(client.AudioStream, new SpeechAudioFormatInfo(16000, AudioBitsPerSample.Sixteen, AudioChannel.Mono));
                 sre.SpeechRecognized += new EventHandler<SpeechRecognizedEventArgs>(RecognitionHandler);
                 sre.SpeechRecognitionRejected += new EventHandler<SpeechRecognitionRejectedEventArgs>(RecognitionRejectedHandler);
                 DictationGrammar customDictationGrammar  = new DictationGrammar("grammar:dictation");
                 customDictationGrammar.Name = "dictation";
                 customDictationGrammar.Enabled = true;
                 sre.LoadGrammar(customDictationGrammar);
-                mics.Add(instance, new Microphone(sre, status, shouldBeOn,port));
+                mics.Add(instance, new Microphone(sre,client, status, shouldBeOn,port));
                 foreach (var g in grammars)
                 {
                     var gram = new CombinedGrammar(g.Key, g.Value);
@@ -323,7 +323,7 @@ namespace SpeechRecognizer
                     {
                         UDPClient client = new UDPClient(port);
                         client.StartClient();
-                        AddInputMic(mic.Key, client.AudioStream, mic.Value, shouldBeOn);
+                        AddInputMic(mic.Key, client, mic.Value, shouldBeOn);
                         port++;
                     }
                     await Query("microphone", "invite", new { ip = ipAddress, port = mics[mic.Key].Port }, new string[1] { mic.Key });
@@ -332,9 +332,13 @@ namespace SpeechRecognizer
                 {
                     if (mics.ContainsKey(mic.Key))
                     {
+                        mics[(string)mic.Key].Client.StopClient();
                         SpeechRecognitionEngine sre = mics[mic.Key].Sre;
                         if (sre.AudioState != AudioState.Stopped && shouldBeOn)
-                            sre.RecognizeAsyncStop();
+                        {
+                            sre.RecognizeAsyncCancel();
+                            Logger.GetInstance().Debug("IT STOPPED!");
+                        }
                     }
                 }
             }

@@ -16,6 +16,7 @@ namespace SpeechRecognizer
         private string status;
         private bool shouldBeOn;
         private int port;
+        private UDPClient client;
 
         /// <summary>
         /// Constructor for a Microphone
@@ -24,8 +25,9 @@ namespace SpeechRecognizer
         /// <param name="status">The status of the microphone</param>
         /// <param name="shouldBeOn">Should the speech recognition engine for this microphone be on</param>
         /// <param name="port">The por this microphone is asociated with</param>
-        public Microphone(SpeechRecognitionEngine sre, string status, bool shouldBeOn, int port)
+        public Microphone(SpeechRecognitionEngine sre, UDPClient client, string status, bool shouldBeOn, int port)
         {
+            this.client = client;
             this.sre = sre;
             this.status = status;
             this.port = port;
@@ -50,6 +52,11 @@ namespace SpeechRecognizer
         public int Port
         {
              get { return port; }
+        }
+
+        public UDPClient Client
+        {
+            get { return client; }
         }
     }
 }

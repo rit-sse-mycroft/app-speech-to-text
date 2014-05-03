@@ -348,6 +348,7 @@ namespace SpeechRecognizer
                             sre.RecognizeAsyncCancel();
                             Logger.GetInstance().Debug("IT STOPPED!");
                         }
+                        mics.Remove(mic.Key);
                     }
                 }
             }

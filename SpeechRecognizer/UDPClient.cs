@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SpeechRecognizer
 {
@@ -21,6 +22,7 @@ namespace SpeechRecognizer
         private bool listening = false;
         private int port;
         private Thread listenerThread;
+        private Task<UdpReceiveResult> currentReceive;
 
         /// <summary>
         /// Returns a reference to the audio stream
@@ -67,7 +69,6 @@ namespace SpeechRecognizer
         {
             // Create new UDP client. The IP end point tells us which IP is sending the data
             client = new UdpClient(port);
-            endPoint = new IPEndPoint(IPAddress.Any, port);
 
             listening = true;
             listenerThread = new Thread(ReceiveCallback);
@@ -83,6 +84,9 @@ namespace SpeechRecognizer
         {
             // Set the boolean to false to stop the asynchronous packet receiving
             listening = false;
+            client.Close();
+            audioStream.Close();
+            //client.EndReceive(currentReceive, ref endPoint);
             Console.WriteLine(" [UDPClient] Stopped listening on port " + port);
         }
 
@@ -92,15 +96,21 @@ namespace SpeechRecognizer
         /// <param name="ar">Contains packet data</param>
         private void ReceiveCallback()
         {
-            // Begin looking for the next packet
-            while (listening)
+            // Receive packet
+            currentReceive = client.ReceiveAsync();
+            currentReceive.ContinueWith((task) =>
             {
-                // Receive packet
-                byte[] packet = client.Receive(ref endPoint);
-
-                // Write the packet to the audio stream
-                audioStream.Write(packet, 0, packet.Length);
-            }
+                if (!task.IsCanceled && !task.IsFaulted)
+                {
+                    var data = task.Result.Buffer;
+                    // Write the packet to the audio stream
+                    audioStream.Write(data, 0, data.Length);
+                    if (listening)
+                    {
+                        ReceiveCallback();
+                    }
+                }
+            });
         }
     }
 }

@@ -105,8 +105,11 @@ namespace SpeechRecognizer
 
         public override void Close()
         {
-            _writeEvent.Close();
-            _writeEvent = null;
+            if (_writeEvent != null)
+            {
+                _writeEvent.Close();
+                _writeEvent = null;
+            }
             base.Close();
         }
 

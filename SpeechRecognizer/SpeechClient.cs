@@ -252,6 +252,7 @@ namespace SpeechRecognizer
         /// <param name="message">The message received</param>
         protected async void MsgQuery(dynamic message)  
         {
+            var log = Logger.GetInstance();
             switch ((string)message["action"])
             {
                 case "load_grammar":
@@ -262,14 +263,19 @@ namespace SpeechRecognizer
                         try
                         {
                             AddGrammar(name, xml);
-                            Console.WriteLine("Added Grammar " + name);
+                            log.Info("Added Grammar " + name);
 
                             await QuerySuccess(message["id"], new { });
                         }
                         catch(ArgumentException)
                         {
                             QueryFail(message["id"], "Grammar has already been added");
-                            Console.WriteLine("Couldn't add the grammar.");
+                            log.Warning("Couldn't add the grammar.");
+                        }
+                        catch (FormatException)
+                        {
+                            QueryFail(message["id"], "Grammar did not parse correctly.");
+                            log.Warning("Couldn't parse the grammar.");
                         }
                         break;
                     }
@@ -298,7 +304,10 @@ namespace SpeechRecognizer
             if (content.ContainsKey("spoken_text"))
             {
                 SpeechRecognitionEngine sre = mics[from].Sre;
-                sre.EmulateRecognize(content["spoken_text"]);
+                if (content["spoken_text"] != "")
+                {
+                    sre.EmulateRecognize(content["spoken_text"]);
+                }
             }
         }
 
